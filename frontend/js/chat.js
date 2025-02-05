@@ -4,10 +4,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const chatArea = document.getElementById("chatArea");
   const messages = document.getElementById("messages");
   const currentRoomTitle = document.getElementById("currentRoom");
+  const messageForm = document.getElementById("messageForm");
+  const messageInput = document.getElementById("messageInput");
   let currentRoom = null;
 
   const token = localStorage.getItem("token");
-  if (!token) {
+  const userId = localStorage.getItem("userId");
+  if (!token || !userId) {
     window.location.href = "/view/login.html";
     return;
   }
@@ -20,7 +23,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (currentRoom === room) {
       leaveRoom(room);
       tabButton.classList.remove("active");
-      currentRoom = null;
     } else {
       if (currentRoom) {
         leaveRoom(currentRoom);
@@ -46,13 +48,66 @@ document.addEventListener("DOMContentLoaded", () => {
     chatArea.classList.add("d-none");
     currentRoomTitle.textContent = "";
     messages.innerHTML = "";
+    currentRoom = null;
   }
 
-  socket.on("message", ({ user, text }) => {
+  socket.on("previousMessages", (previousMessages) => {
+    messages.innerHTML = "";
+    previousMessages.forEach((msg) => {
+      const messageDiv = document.createElement("div");
+      messageDiv.className = "mb-2";
+
+      const usernameSpan = document.createElement("span");
+      const isCurrentUser = msg.from_user._id === userId;
+      usernameSpan.className = isCurrentUser ? "text-primary" : "text-dark";
+      usernameSpan.textContent = `${msg.from_user.username}: `;
+
+      const messageText = document.createElement("span");
+      messageText.className = "text-dark";
+      messageText.textContent = msg.message;
+
+      messageDiv.appendChild(usernameSpan);
+      messageDiv.appendChild(messageText);
+      messages.appendChild(messageDiv);
+    });
+    messages.scrollTop = messages.scrollHeight;
+  });
+
+  socket.on("message", ({ user, text, userId: messageUserId }) => {
     const messageDiv = document.createElement("div");
     messageDiv.className = "mb-2";
-    messageDiv.textContent = `${user}: ${text}`;
+
+    if (user.toLowerCase() === "system") {
+      messageDiv.className = "mb-2 text-danger";
+      messageDiv.textContent = `${user}: ${text}`;
+    } else {
+      const usernameSpan = document.createElement("span");
+      const isCurrentUser = messageUserId === userId;
+      usernameSpan.className = isCurrentUser ? "text-primary" : "text-dark";
+      usernameSpan.textContent = `${user}: `;
+
+      const messageText = document.createElement("span");
+      messageText.className = "text-dark";
+      messageText.textContent = text;
+
+      messageDiv.appendChild(usernameSpan);
+      messageDiv.appendChild(messageText);
+    }
+
     messages.appendChild(messageDiv);
     messages.scrollTop = messages.scrollHeight;
+  });
+
+  messageForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const message = messageInput.value.trim();
+    if (!message || !currentRoom) return;
+
+    socket.emit("chatMessage", {
+      room: currentRoom,
+      message,
+      userId,
+    });
+    messageInput.value = "";
   });
 });

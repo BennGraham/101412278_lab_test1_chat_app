@@ -22,7 +22,7 @@ app.get("/api/rooms", (_, res) => {
 });
 
 io.on("connection", (socket) => {
-  socket.on("joinRoom", (room) => {
+  socket.on("joinRoom", async (room) => {
     if (ROOMS.includes(room)) {
       Object.keys(socket.rooms).forEach((currentRoom) => {
         if (currentRoom !== socket.id) {
@@ -32,10 +32,23 @@ io.on("connection", (socket) => {
 
       socket.join(room);
       socket.emit("roomJoined", room);
-      io.to(room).emit("message", {
-        user: "System",
-        text: `User joined`,
-      });
+
+      try {
+        console.log("fetching prev messags");
+        const previousMessages = await GroupMessage.find({ room })
+          .populate("from_user", "username")
+          .sort({ date_sent: -1 })
+          .limit(50);
+
+        socket.emit("previousMessages", previousMessages.toReversed());
+
+        io.to(room).emit("message", {
+          user: "System",
+          text: `User joined`,
+        });
+      } catch (error) {
+        console.error("Error loading previous messages:", error);
+      }
     }
   });
 
@@ -50,6 +63,28 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("disconnected user id: ", socket.id);
+  });
+
+  socket.on("chatMessage", async ({ room, message, userId }) => {
+    try {
+      const user = await User.findById(userId);
+      if (!user) return;
+
+      const groupMessage = new GroupMessage({
+        from_user: userId,
+        room,
+        message,
+      });
+      await groupMessage.save();
+
+      io.to(room).emit("message", {
+        user: user.username,
+        text: message,
+        userId: user._id.toString(),
+      });
+    } catch (error) {
+      console.error("Error saving message:", error);
+    }
   });
 });
 
