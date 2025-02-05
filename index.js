@@ -5,11 +5,53 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("./models/User.js");
+const GroupMessage = require("./models/GroupMessage.js");
+const PrivateMessage = require("./models/PrivateMessage.js");
+const http = require("http").createServer(app);
+const io = require("socket.io")(http);
 
 app.use(express.json());
 app.use(express.static("frontend"));
 
 mongoose.connect(process.env.MONGODB_URI);
+
+const ROOMS = ["room 1", "room 2", "room 3", "room 4", "room 5"];
+
+app.get("/api/rooms", (_, res) => {
+  res.json(ROOMS);
+});
+
+io.on("connection", (socket) => {
+  socket.on("joinRoom", (room) => {
+    if (ROOMS.includes(room)) {
+      Object.keys(socket.rooms).forEach((currentRoom) => {
+        if (currentRoom !== socket.id) {
+          socket.leave(currentRoom);
+        }
+      });
+
+      socket.join(room);
+      socket.emit("roomJoined", room);
+      io.to(room).emit("message", {
+        user: "System",
+        text: `User joined`,
+      });
+    }
+  });
+
+  socket.on("leaveRoom", (room) => {
+    socket.leave(room);
+    socket.emit("roomLeft", room);
+    io.to(room).emit("message", {
+      user: "system",
+      text: `User left`,
+    });
+  });
+
+  socket.on("disconnect", () => {
+    console.log("disconnected user id: ", socket.id);
+  });
+});
 
 app.get("/", (_, res) => {
   res.redirect("/view/login.html");
@@ -56,6 +98,6 @@ app.post("/api/login", async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+http.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}/`);
 });
