@@ -86,6 +86,26 @@ io.on("connection", (socket) => {
       console.error("Error saving message:", error);
     }
   });
+
+  socket.on("typing", async ({ room }) => {
+    const token = socket.handshake.auth.token;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+
+    if (user) {
+      socket.to(room).emit("userTyping", { user: user.username });
+    }
+  });
+
+  socket.on("stopTyping", async ({ room }) => {
+    const token = socket.handshake.auth.token;
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+
+    if (user) {
+      socket.to(room).emit("userStoppedTyping", { user: user.username });
+    }
+  });
 });
 
 app.get("/", (_, res) => {

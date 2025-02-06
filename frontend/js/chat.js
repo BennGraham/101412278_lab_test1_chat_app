@@ -1,5 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
-  const socket = io();
+  const socket = io({
+    auth: {
+      token: localStorage.getItem("token"),
+    },
+  });
   const roomTabs = document.getElementById("roomTabs");
   const chatArea = document.getElementById("chatArea");
   const messages = document.getElementById("messages");
@@ -96,6 +100,51 @@ document.addEventListener("DOMContentLoaded", () => {
 
     messages.appendChild(messageDiv);
     messages.scrollTop = messages.scrollHeight;
+  });
+
+  let typingTimeout;
+
+  messageInput.addEventListener("input", () => {
+    if (currentRoom) {
+      const hasText = messageInput.value.trim().length > 0;
+
+      if (hasText) {
+        socket.emit("typing", { room: currentRoom });
+      } else {
+        socket.emit("stopTyping", { room: currentRoom });
+      }
+
+      if (typingTimeout) {
+        clearTimeout(typingTimeout);
+      }
+    }
+  });
+
+  socket.on("userTyping", ({ user }) => {
+    const typingDiv = document.createElement("div");
+    typingDiv.className = "typing-indicator text-muted fst-italic mb-2";
+    typingDiv.textContent = `${user} is typing...`;
+    typingDiv.dataset.user = user;
+
+    // REMEMBER THIS - add user data to indicator
+    const existingIndicator = messages.querySelector(
+      `.typing-indicator[data-user="${user}"]`
+    );
+    if (existingIndicator) {
+      existingIndicator.remove();
+    }
+
+    messages.appendChild(typingDiv);
+    messages.scrollTop = messages.scrollHeight;
+  });
+
+  socket.on("userStoppedTyping", ({ user }) => {
+    const typingIndicator = messages.querySelector(
+      `.typing-indicator[data-user="${user}"]`
+    );
+    if (typingIndicator) {
+      typingIndicator.remove();
+    }
   });
 
   messageForm.addEventListener("submit", (e) => {
