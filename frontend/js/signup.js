@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const data = await response.json();
 
       if (response.ok) {
-        window.location.href = "/login.html";
+        window.location.href = "/view/login.html";
       } else {
         alert(data.error ?? "registration failed");
       }
