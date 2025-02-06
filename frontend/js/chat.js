@@ -164,4 +164,119 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.removeItem("userId");
     window.location.href = "/view/login.html";
   });
+
+  let selectedUser = null;
+
+  async function loadUsers() {
+    try {
+      const response = await fetch("/api/users");
+      const users = await response.json();
+      const usersContainer = document.getElementById("usersContainer");
+      usersContainer.innerHTML = "";
+
+      users.forEach((user) => {
+        if (user._id !== userId) {
+          const userBtn = document.createElement("button");
+          userBtn.className = "btn btn-outline-secondary btn-sm";
+          userBtn.textContent = user.username;
+          userBtn.onclick = () => selectUser(user);
+          usersContainer.appendChild(userBtn);
+        }
+      });
+    } catch (error) {
+      console.error("Error loading users:", error);
+    }
+  }
+
+  function selectUser(user) {
+    selectedUser = user;
+    currentRoom = null;
+    document
+      .querySelectorAll(".nav-link")
+      .forEach((tab) => tab.classList.remove("active"));
+    chatArea.classList.remove("d-none");
+    messages.innerHTML = "";
+    loadPrivateMessages(user._id);
+  }
+
+  async function loadPrivateMessages(otherUserId) {
+    try {
+      const response = await fetch(`/api/private-messages/${userId}`);
+      const allMessages = await response.json();
+
+      const relevantMessages = allMessages.filter(
+        (msg) =>
+          (msg.from_user._id === userId && msg.to_user._id === otherUserId) ||
+          (msg.from_user._id === otherUserId && msg.to_user._id === userId)
+      );
+
+      messages.innerHTML = "";
+      relevantMessages.forEach((msg) => {
+        displayMessage(
+          msg.from_user.username,
+          msg.message,
+          msg.from_user._id === userId
+        );
+      });
+    } catch (error) {
+      console.error("Error loading private messages:", error);
+    }
+  }
+
+  messageForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const message = messageInput.value.trim();
+    if (!message) return;
+
+    if (currentRoom) {
+      socket.emit("chatMessage", {
+        room: currentRoom,
+        message,
+        userId,
+      });
+    } else if (selectedUser) {
+      socket.emit("privateMessage", {
+        fromUserId: userId,
+        toUserId: selectedUser._id,
+        message,
+      });
+    }
+    messageInput.value = "";
+  });
+
+  socket.on("newPrivateMessage", (message) => {
+    if (
+      selectedUser &&
+      ((message.from_user._id === userId &&
+        message.to_user._id === selectedUser._id) ||
+        (message.from_user._id === selectedUser._id &&
+          message.to_user._id === userId))
+    ) {
+      displayMessage(
+        message.from_user.username,
+        message.message,
+        message.from_user._id === userId
+      );
+    }
+  });
+
+  function displayMessage(username, text, isCurrentUser) {
+    const messageDiv = document.createElement("div");
+    messageDiv.className = "mb-2";
+
+    const usernameSpan = document.createElement("span");
+    usernameSpan.className = isCurrentUser ? "text-primary" : "text-dark";
+    usernameSpan.textContent = `${username}: `;
+
+    const messageText = document.createElement("span");
+    messageText.className = "text-dark";
+    messageText.textContent = text;
+
+    messageDiv.appendChild(usernameSpan);
+    messageDiv.appendChild(messageText);
+    messages.appendChild(messageDiv);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  loadUsers();
 });

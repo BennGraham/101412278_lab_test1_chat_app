@@ -106,6 +106,25 @@ io.on("connection", (socket) => {
       socket.to(room).emit("userStoppedTyping", { user: user.username });
     }
   });
+
+  socket.on("privateMessage", async ({ fromUserId, toUserId, message }) => {
+    try {
+      const privateMessage = new PrivateMessage({
+        from_user: fromUserId,
+        to_user: toUserId,
+        message,
+      });
+      await privateMessage.save();
+
+      const populatedMessage = await PrivateMessage.findById(privateMessage._id)
+        .populate("from_user", "username")
+        .populate("to_user", "username");
+
+      io.emit("newPrivateMessage", populatedMessage);
+    } catch (error) {
+      console.error("Error sending private message:", error);
+    }
+  });
 });
 
 app.get("/", (_, res) => {
@@ -147,6 +166,30 @@ app.post("/api/login", async (req, res) => {
 
     const token = jwt.sign({ userId: user._id }, process.env.JWT_SECRET);
     res.json({ token, userId: user._id });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/users", async (req, res) => {
+  try {
+    const users = await User.find({}, "username _id");
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+app.get("/api/private-messages/:userId", async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const messages = await PrivateMessage.find({
+      $or: [{ from_user: userId }, { to_user: userId }],
+    })
+      .populate("from_user", "username")
+      .populate("to_user", "username")
+      .sort({ date_sent: -1 });
+    res.json(messages);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
