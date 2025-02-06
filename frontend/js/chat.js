@@ -7,7 +7,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const roomTabs = document.getElementById("roomTabs");
   const chatArea = document.getElementById("chatArea");
   const messages = document.getElementById("messages");
-  const currentRoomTitle = document.getElementById("currentRoom");
   const messageForm = document.getElementById("messageForm");
   const messageInput = document.getElementById("messageInput");
   let currentRoom = null;
@@ -43,14 +42,12 @@ document.addEventListener("DOMContentLoaded", () => {
     currentRoom = room;
     socket.emit("joinRoom", room);
     chatArea.classList.remove("d-none");
-    currentRoomTitle.textContent = `Current Room: ${room}`;
     messages.innerHTML = "";
   }
 
   function leaveRoom(room) {
     socket.emit("leaveRoom", room);
     chatArea.classList.add("d-none");
-    currentRoomTitle.textContent = "";
     messages.innerHTML = "";
     currentRoom = null;
   }
@@ -158,5 +155,13 @@ document.addEventListener("DOMContentLoaded", () => {
       userId,
     });
     messageInput.value = "";
+  });
+
+  const logoutBtn = document.getElementById("logout-button");
+
+  logoutBtn.addEventListener("click", () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("userId");
+    window.location.href = "/view/login.html";
   });
 });

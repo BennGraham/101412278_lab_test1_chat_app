@@ -3,3 +3,45 @@
   padding: 0;
   box-sizing: border-box;
 }
+
+.chat-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.nav-tabs .nav-link {
+  color: black;
+  border: none;
+  padding: 0.75rem 1.5rem;
+  transition: all 0.2s;
+}
+
+#messages {
+  height: 60vh;
+  background-color: ghostwhite;
+  border: 1px solid lightgray;
+  border-radius: 1rem;
+  padding: 1rem;
+}
+
+.nav-tabs .nav-link:hover {
+  color: gray;
+  background-color: lightgray;
+  border-color: transparent;
+}
+
+.nav-tabs .nav-link.active {
+  color: dodgerblue;
+  background-color: white;
+  border-bottom: 2px solid dodgerblue;
+}
+
+.message-input {
+  border-radius: 20px;
+  padding: 0.75rem 1.5rem;
+}
+
+.typing-indicator {
+  font-size: 0.875rem;
+  color: black;
+}
